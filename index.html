@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ジェネレーティブ水彩ウォッシュ</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen p-4">
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold text-pink-400 mb-1">🎨 ジェネレーティブ水彩ウォッシュ</h1>
+  <p class="text-gray-400 text-sm mb-4">スライダで調整してGenerateボタンを押すと水彩画風のアートを生成します</p>
+
+  <div class="bg-gray-900 rounded-xl p-4 mb-4">
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="text-xs text-gray-400 flex justify-between mb-1">
+          <span>色相範囲</span><span id="hueVal" class="text-pink-300">180°</span>
+        </label>
+        <input id="hueRange" type="range" min="0" max="360" value="180"
+          class="w-full accent-pink-400" aria-label="色相範囲スライダ">
+      </div>
+      <div>
+        <label class="text-xs text-gray-400 flex justify-between mb-1">
+          <span>透明度</span><span id="opacVal" class="text-pink-300">0.15</span>
+        </label>
+        <input id="opacSlider" type="range" min="1" max="40" value="15"
+          class="w-full accent-pink-400" aria-label="透明度スライダ">
+      </div>
+      <div>
+        <label class="text-xs text-gray-400 flex justify-between mb-1">
+          <span>ブロブサイズ</span><span id="sizeVal" class="text-pink-300">120px</span>
+        </label>
+        <input id="sizeSlider" type="range" min="30" max="300" value="120"
+          class="w-full accent-pink-400" aria-label="ブロブサイズスライダ">
+      </div>
+      <div>
+        <label class="text-xs text-gray-400 flex justify-between mb-1">
+          <span>にじみ広がり</span><span id="bleedVal" class="text-pink-300">0.6</span>
+        </label>
+        <input id="bleedSlider" type="range" min="1" max="10" value="6"
+          class="w-full accent-pink-400" aria-label="にじみスライダ">
+      </div>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button id="generateBtn" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white font-bold py-2 rounded transition-colors" aria-label="新しい水彩アートを生成">Generate</button>
+      <button id="clearBtn" class="px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 rounded transition-colors" aria-label="キャンバスをクリア">クリア</button>
+      <button id="downloadBtn" class="px-4 bg-indigo-700 hover:bg-indigo-600 text-white font-bold py-2 rounded transition-colors" aria-label="PNG画像をダウンロード">↓ PNG</button>
+    </div>
+  </div>
+
+  <div class="bg-gray-900 rounded-xl p-3">
+    <canvas id="canvas" class="w-full rounded-lg" style="aspect-ratio:4/3;" aria-label="水彩アートキャンバス"></canvas>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function getParams() {
+  return {
+    hueRange: parseInt(document.getElementById('hueRange').value),
+    opacity: parseInt(document.getElementById('opacSlider').value) / 100,
+    blobSize: parseInt(document.getElementById('sizeSlider').value),
+    bleed: parseInt(document.getElementById('bleedSlider').value) / 10,
+  };
+}
+
+function updateLabels() {
+  document.getElementById('hueVal').textContent = document.getElementById('hueRange').value + '°';
+  document.getElementById('opacVal').textContent = (parseInt(document.getElementById('opacSlider').value)/100).toFixed(2);
+  document.getElementById('sizeVal').textContent = document.getElementById('sizeSlider').value + 'px';
+  document.getElementById('bleedVal').textContent = (parseInt(document.getElementById('bleedSlider').value)/10).toFixed(1);
+}
+
+['hueRange','opacSlider','sizeSlider','bleedSlider'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateLabels);
+});
+
+let seed = Math.random() * 99999 | 0;
+
+function seededRand(s) {
+  // Simple LCG
+  s = (s * 1664525 + 1013904223) & 0xffffffff;
+  return { val: (s >>> 0) / 0xffffffff, next: s };
+}
+
+function rng(state) {
+  const r = seededRand(state);
+  return { val: r.val, state: r.next };
+}
+
+function drawWatercolor(params) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background: warm off-white
+  ctx.fillStyle = '#faf8f4';
+  ctx.fillRect(0, 0, W, H);
+
+  let state = seed;
+  const baseHue = (state % 360);
+  const blobCount = Math.floor(W * H / (params.blobSize * params.blobSize * 2)) + 15;
+
+  for (let i = 0; i < blobCount; i++) {
+    let r1 = rng(state); state = r1.state;
+    let r2 = rng(state); state = r2.state;
+    let r3 = rng(state); state = r3.state;
+    let r4 = rng(state); state = r4.state;
+    let r5 = rng(state); state = r5.state;
+    let r6 = rng(state); state = r6.state;
+    let r7 = rng(state); state = r7.state;
+    let r8 = rng(state); state = r8.state;
+
+    const x = r1.val * W;
+    const y = r2.val * H;
+    const hue = (baseHue + r3.val * params.hueRange - params.hueRange / 2 + 360) % 360;
+    const sat = 40 + r4.val * 40;
+    const lit = 50 + r5.val * 30;
+    const radius = params.blobSize * (0.3 + r6.val * 0.7);
+    const layers = 4 + Math.floor(r7.val * 5);
+
+    for (let l = 0; l < layers; l++) {
+      let rl = rng(state); state = rl.state;
+      const wobble = radius * params.bleed * (0.2 + rl.val * 0.8);
+      // Draw irregular blob using bezier curves
+      ctx.save();
+      ctx.globalAlpha = params.opacity * (1 - l / layers * 0.5);
+      ctx.fillStyle = `hsl(${hue},${sat}%,${lit}%)`;
+
+      const pts = 8;
+      ctx.beginPath();
+      for (let p = 0; p < pts; p++) {
+        let rp = rng(state); state = rp.state;
+        let rp2 = rng(state); state = rp2.state;
+        const angle = (p / pts) * Math.PI * 2;
+        const r = radius + (rp.val - 0.5) * wobble * 2;
+        const px = x + Math.cos(angle) * r + (rp2.val - 0.5) * wobble;
+        const py = y + Math.sin(angle) * r + (rp2.val - 0.5) * wobble;
+        if (p === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+
+      // Radial gradient for watercolor edge effect
+      const gx = x + (r8.val - 0.5) * radius * 0.3;
+      const gy = y + (r8.val - 0.5) * radius * 0.3;
+      const grad = ctx.createRadialGradient(gx, gy, 0, x, y, radius * 1.2);
+      grad.addColorStop(0, `hsla(${hue},${sat}%,${lit+10}%,${params.opacity * 1.5})`);
+      grad.addColorStop(0.6, `hsla(${hue},${sat}%,${lit}%,${params.opacity})`);
+      grad.addColorStop(1, `hsla(${hue},${sat+10}%,${lit-10}%,0)`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Edge darkening (pigment accumulation effect)
+    {
+      let re = rng(state); state = re.state;
+      ctx.save();
+      ctx.globalAlpha = params.opacity * 0.4;
+      const edgeGrad = ctx.createRadialGradient(x, y, radius * 0.5, x, y, radius * 1.1);
+      edgeGrad.addColorStop(0, `hsla(${hue},${sat}%,${lit}%,0)`);
+      edgeGrad.addColorStop(1, `hsla(${hue},${sat+20}%,${lit-20}%,${params.opacity})`);
+      ctx.fillStyle = edgeGrad;
+      ctx.beginPath();
+      ctx.arc(x, y, radius * 1.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+function setupCanvas() {
+  const container = canvas.parentElement;
+  const w = container.clientWidth - 24;
+  canvas.width = w;
+  canvas.height = Math.floor(w * 3 / 4);
+}
+
+function generate() {
+  seed = Math.random() * 999999 | 0;
+  setupCanvas();
+  drawWatercolor(getParams());
+}
+
+document.getElementById('generateBtn').addEventListener('click', generate);
+document.getElementById('clearBtn').addEventListener('click', () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#faf8f4';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+});
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.download = `watercolor-${Date.now()}.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+
+setupCanvas();
+generate();
+</script>
+</body>
+</html>
